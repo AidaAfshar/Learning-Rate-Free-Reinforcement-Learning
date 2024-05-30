@@ -4,7 +4,7 @@ import time
 from dataclasses import dataclass
 import gymnasium as gym
 import numpy as np
-from algorithmsmodsel import BalancingClassic, BalancingHyperparamDoublingDataDriven, CorralHyperparam, EXP3Hyperparam, UCBHyperparam
+from model_selection_algorithms.algorithmsmodsel import BalancingClassic, BalancingHyperparamDoublingDataDriven, CorralHyperparam, EXP3Hyperparam, UCBHyperparam
 import torch
 import torch.nn as nn
 import torch.optim as optim
