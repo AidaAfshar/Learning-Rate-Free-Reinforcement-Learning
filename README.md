@@ -12,6 +12,6 @@ For choosing the model selection strategy, simply set the 'modsel_alg' parameter
 
 
 ## Citations
-For Model Selection methods, we use the implementations available at [model selection repository](https://github.com/pacchiano/modelselection)
+For Model Selection methods, we use the implementations available at [model selection](https://github.com/pacchiano/modelselection) repository.
 
 For reinforcement learning algorithms, we used the [cleanRL](https://docs.cleanrl.dev/) library. 
