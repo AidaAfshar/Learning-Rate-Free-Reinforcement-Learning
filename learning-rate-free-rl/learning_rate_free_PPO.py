@@ -1,10 +1,10 @@
+import os
 import random
 import time
 from dataclasses import dataclass
 import gymnasium as gym
 import numpy as np
-from model_selection_algorithms.algorithmsmodsel import BalancingHyperparamDoublingDataDriven, CorralHyperparam, \
-    EXP3Hyperparam, UCBHyperparam, BalancingClassic
+from algorithmsmodsel import BalancingClassic, BalancingHyperparamDoublingDataDriven, CorralHyperparam, EXP3Hyperparam, UCBHyperparam
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -13,23 +13,20 @@ from torch.distributions.normal import Normal
 from torch.utils.tensorboard import SummaryWriter
 from math import log, exp
 from typing import List
-
-
 @dataclass
 class Args:
     exp_name: str = os.path.basename(__file__)[: -len(".py")]
     """the name of this experiment"""
-
     # Model Selection Algorithm Parameters
     modsel_options = ["BHD3", "Corral", "UCB", "Exp3", "Classic"]
-    modsel_alg: str = "UCB"
+    modsel_alg: str = "BHD3"
     hparam_to_tune: str = "learning_rate"
     num_base_learners: int = 10
     # num_base_learners: int = 1
     base_learners_hparam = [1e-2, 5e-3, 1e-3, 5e-4, 1e-4, 5e-5, 1e-5, 5e-6, 1e-6, 5e-7]
     # base_learners_hparam = [5e-5]
     
-    seed: int = 1
+    seed: int = 3
     """seed of the experiment"""
     torch_deterministic: bool = True
     """if toggled, `torch.backends.cudnn.deterministic=False`"""
@@ -37,7 +34,7 @@ class Args:
     """if toggled, cuda will be enabled by default"""
     track: bool = True
     """if toggled, this experiment will wandb loginbe tracked with Weights and Biases"""
-    wandb_project_name: str = f"Modsel_PPO_lr_humanoind"
+    wandb_project_name: str = f"PPO_{modsel_alg}_lr_humanoind"
     """the wandb's project name"""
     wandb_entity: str = None
     """the entity (team) of wandb's project"""
@@ -49,7 +46,6 @@ class Args:
     """whether to upload the saved model to huggingface"""
     hf_entity: str = ""
     """the user or org name of the model repository from the Hugging Face Hub"""
-
     # Algorithm specific arguments
     env_id: str = "Humanoid-v4"
     """the id of the environment"""
@@ -93,17 +89,12 @@ class Args:
     """the mini-batch size (computed in runtime)"""
     num_iterations: int = 0
     """the number of iterations (computed in runtime)"""
-
-
-
 def binary_search(func,xmin,xmax,tol=1e-5):
     ''' func: function
     [xmin,xmax] is the interval where func is increasing
     returns x in [xmin, xmax] such that func(x) =~ 1 and xmin otherwise'''
-
     assert isinstance(xmin, float)
     assert isinstance(func(0.5*(xmax+xmin)), float)
-
     l = xmin
     r = xmax
     while abs(r-l) > tol:
@@ -112,15 +103,8 @@ def binary_search(func,xmin,xmax,tol=1e-5):
             r = x
         else:
             l = x
-
     x = 0.5*(r + l)
     return x
-
-
-
-
-
-
 def make_env(env_id, idx, capture_video, run_name, gamma):
     def thunk():
         if capture_video and idx == 0:
@@ -137,26 +121,17 @@ def make_env(env_id, idx, capture_video, run_name, gamma):
         env = gym.wrappers.TransformReward(env, lambda reward: np.clip(reward, -10, 10))
         return env
     return thunk
-
-
 def layer_init(layer, std=np.sqrt(2), bias_const=0.0):
     torch.nn.init.orthogonal_(layer.weight, std)
     torch.nn.init.constant_(layer.bias, bias_const)
     return layer
-
-
 def normalize_episodic_return(episodic_return, normalizer_const):
     if episodic_return < normalizer_const:
         normalized_return = episodic_return/normalizer_const
     else:
         normalized_return = 1
     return normalized_return
-
-
-
-
 class BaseLearner(nn.Module):
-    
     def __init__(self, base_index, envs, device, args):
         super().__init__()
         self.base_index = base_index
@@ -186,12 +161,8 @@ class BaseLearner(nn.Module):
             self.optimizer = optim.Adam(self.parameters(), lr=args.base_learners_hparam[self.base_index], eps=1e-5)
         else: 
             self.optimizer = optim.Adam(self.parameters(), lr=args.learning_rate, eps=1e-5)
-    
-    
     def get_value(self, x):
         return self.critic(x)
-    
-    
     def get_action_and_value(self, x, action=None):
         action_mean = self.actor_mean(x)
         action_logstd = self.actor_logstd.expand_as(action_mean)
@@ -205,7 +176,6 @@ class BaseLearner(nn.Module):
     def get_optimizer(self):
         return self.optimizer
     
-    
     def get_episode_results(self):
         return { "obs": self.obs,
                 "actions": self.actions,
@@ -215,14 +185,12 @@ class BaseLearner(nn.Module):
                 "values": self.values
         }
     
-
-
 if __name__ == "__main__":
     args = tyro.cli(Args)
     args.batch_size = int(args.num_envs * args.num_steps)
     args.minibatch_size = int(args.batch_size // args.num_minibatches)
     args.num_iterations = args.total_timesteps // args.batch_size
-    run_name = f"PPO__{args.modsel_alg}__lr__{args.env_id}__{args.seed}"
+    run_name = f"{args.env_id}__{args.exp_name}__{args.seed}__{int(time.time())}"
     if args.track:
         import wandb
         wandb.init(
@@ -256,7 +224,6 @@ if __name__ == "__main__":
     for i in range(m):
         agent = BaseLearner(base_index=i, envs=envs, device=device, args=args).to(device)
         base_learners.append(agent)
-
     # meta learner initiation
     if args.modsel_alg == "BHD3" :
         modsel = BalancingHyperparamDoublingDataDriven(m, dmin = 1)
@@ -306,7 +273,6 @@ if __name__ == "__main__":
                 values[step] = value.flatten()
             actions[step] = action
             logprobs[step] = logprob
-            
             # TRY NOT TO MODIFY: execute the game and log data.
             next_obs, reward, terminations, truncations, infos = envs.step(action.cpu().numpy())
             next_done = np.logical_or(terminations, truncations)
@@ -420,24 +386,30 @@ if __name__ == "__main__":
         
         writer.add_scalar("modelselection/learning_rate", args.base_learners_hparam[base_index], global_step)
         writer.add_scalar("modelselection/selected_base_learner", base_index, global_step)
-
-
-    print("-------------------------------------")
-    if args.modsel_alg != "Exp3":
-        writer.add_text('base_probs', f'p={modsel.base_probas}', global_step)
-        print(f'base_probas = {modsel.base_probas}')
-    if args.modsel_alg == "BHD3" or args.modsel_alg == "Classic":
-        writer.add_text('num_plays', f'num_plays={modsel.num_plays}', global_step)
-        print(f'num_plays={modsel.num_plays}')
-    if args.modsel_alg == "BHD3":
-        writer.add_text('balancing_potentials', f'phi={modsel.balancing_potentials}', global_step)
-        print(f'phi={modsel.balancing_potentials}')
-
-
+        
+        
+        
     if args.save_model:
         model_path = f"runs/{run_name}/{args.exp_name}.cleanrl_model"
         torch.save(agent.state_dict(), model_path)
         print(f"model saved to {model_path}")
-
+        # from cleanrl_utils.evals.ppo_eval import evaluate
+        # episodic_returns = evaluate(
+        #     model_path,
+        #     make_env,
+        #     args.env_id,
+        #     eval_episodes=10,
+        #     run_name=f"{run_name}-eval",
+        #     Model=BaseLearner,
+        #     device=device,
+        #     gamma=args.gamma,
+        # )
+        # for idx, episodic_return in enumerate(episodic_returns):
+        #     writer.add_scalar("eval/episodic_return", episodic_return, idx)
+        # if args.upload_model:
+        #     from cleanrl_utils.huggingface import push_to_hub
+        #     repo_name = f"{args.env_id}-{args.exp_name}-seed{args.seed}"
+        #     repo_id = f"{args.hf_entity}/{repo_name}" if args.hf_entity else repo_name
+        #     push_to_hub(args, episodic_returns, repo_id, "PPO", f"runs/{run_name}", f"videos/{run_name}-eval")
     envs.close()
     writer.close()
