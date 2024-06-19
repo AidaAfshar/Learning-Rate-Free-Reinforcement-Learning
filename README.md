@@ -1,7 +1,7 @@
 # Learning-Rate-Free-Reinforcement-Learning
-This repository includes the Learning rate-free version of PPO and DQN, based on model selection. The paper preprint will be available  after double-blind review.
+This repository includes the Learning rate-free version of PPO and DQN, using model selection algorithms. 
 
-For choosing the model selection strategy, simply set the 'modsel_alg' parameter to one of the following during the initialization:
+For choosing the model selection strategy, set the 'modsel_alg' parameter to one of the following during the initialization:
 - "BHD3"
   - for Doubling Data-Driven Regret Balancing algorithm
 - "Classic"
@@ -12,6 +12,6 @@ For choosing the model selection strategy, simply set the 'modsel_alg' parameter
 
 
 ## Citations
-For Model Selection methods, we use the implementations available at [model selection](https://github.com/pacchiano/modelselection) repository.
+Model Selection implementations are originally from [model selection](https://github.com/pacchiano/modelselection) repository.
 
-For reinforcement learning algorithms, we used the [cleanRL](https://docs.cleanrl.dev/) library. 
+Reinforcement learning algorithms are modified versions of [cleanRL](https://docs.cleanrl.dev/) implementations. 
