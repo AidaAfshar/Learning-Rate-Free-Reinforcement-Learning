@@ -1,0 +1,187 @@
+diff --git a/learning-rate-free-rl/learning_rate_free_DQN.py b/learning-rate-free-rl/learning_rate_free_DQN.py
+index 2bce11f..2a82271 100644
+--- a/learning-rate-free-rl/learning_rate_free_DQN.py
++++ b/learning-rate-free-rl/learning_rate_free_DQN.py
+@@ -31,7 +31,7 @@ class Args:
+     """if toggled, `torch.backends.cudnn.deterministic=False`"""
+     cuda: bool = True
+     """if toggled, cuda will be enabled by default"""
+-    track: bool = True
++    track: bool = False
+     """if toggled, this experiment will be tracked with Weights and Biases"""
+     wandb_project_name: str = f"Modsel_DQN_lr"
+     """the wandb's project name"""
+diff --git a/learning-rate-free-rl/learning_rate_free_PPO.py b/learning-rate-free-rl/learning_rate_free_PPO.py
+index b47a729..63c9d85 100644
+--- a/learning-rate-free-rl/learning_rate_free_PPO.py
++++ b/learning-rate-free-rl/learning_rate_free_PPO.py
+@@ -1,4 +1,8 @@
++import sys
+ import os
++sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
++
++
+ import random
+ import time
+ from dataclasses import dataclass
+@@ -13,20 +17,23 @@ from torch.distributions.normal import Normal
+ from torch.utils.tensorboard import SummaryWriter
+ from math import log, exp
+ from typing import List
++
++
++
+ @dataclass
+ class Args:
+     exp_name: str = os.path.basename(__file__)[: -len(".py")]
+     """the name of this experiment"""
+     # Model Selection Algorithm Parameters
+-    modsel_options = ["BHD3", "Corral", "UCB", "Exp3", "Classic"]
+-    modsel_alg: str = "BHD3"
++    modsel_options = ["BHD3", "ED2RB" ,"Corral", "UCB", "Exp3", "Classic"]
++    modsel_alg: str = "ED2RB"
+     hparam_to_tune: str = "learning_rate"
+     num_base_learners: int = 10
+     # num_base_learners: int = 1
+     base_learners_hparam = [1e-2, 5e-3, 1e-3, 5e-4, 1e-4, 5e-5, 1e-5, 5e-6, 1e-6, 5e-7]
+     # base_learners_hparam = [5e-5]
+     
+-    seed: int = 3
++    seed: int = 1
+     """seed of the experiment"""
+     torch_deterministic: bool = True
+     """if toggled, `torch.backends.cudnn.deterministic=False`"""
+@@ -89,6 +96,8 @@ class Args:
+     """the mini-batch size (computed in runtime)"""
+     num_iterations: int = 0
+     """the number of iterations (computed in runtime)"""
++
++
+ def binary_search(func,xmin,xmax,tol=1e-5):
+     ''' func: function
+     [xmin,xmax] is the interval where func is increasing
+@@ -105,6 +114,8 @@ def binary_search(func,xmin,xmax,tol=1e-5):
+             l = x
+     x = 0.5*(r + l)
+     return x
++
++
+ def make_env(env_id, idx, capture_video, run_name, gamma):
+     def thunk():
+         if capture_video and idx == 0:
+@@ -121,16 +132,22 @@ def make_env(env_id, idx, capture_video, run_name, gamma):
+         env = gym.wrappers.TransformReward(env, lambda reward: np.clip(reward, -10, 10))
+         return env
+     return thunk
++
++
+ def layer_init(layer, std=np.sqrt(2), bias_const=0.0):
+     torch.nn.init.orthogonal_(layer.weight, std)
+     torch.nn.init.constant_(layer.bias, bias_const)
+     return layer
++
++
+ def normalize_episodic_return(episodic_return, normalizer_const):
+     if episodic_return < normalizer_const:
+         normalized_return = episodic_return/normalizer_const
+     else:
+         normalized_return = 1
+     return normalized_return
++
++
+ class BaseLearner(nn.Module):
+     def __init__(self, base_index, envs, device, args):
+         super().__init__()
+@@ -161,8 +178,10 @@ class BaseLearner(nn.Module):
+             self.optimizer = optim.Adam(self.parameters(), lr=args.base_learners_hparam[self.base_index], eps=1e-5)
+         else: 
+             self.optimizer = optim.Adam(self.parameters(), lr=args.learning_rate, eps=1e-5)
++
+     def get_value(self, x):
+         return self.critic(x)
++
+     def get_action_and_value(self, x, action=None):
+         action_mean = self.actor_mean(x)
+         action_logstd = self.actor_logstd.expand_as(action_mean)
+@@ -185,6 +204,7 @@ class BaseLearner(nn.Module):
+                 "values": self.values
+         }
+     
++
+ if __name__ == "__main__":
+     args = tyro.cli(Args)
+     args.batch_size = int(args.num_envs * args.num_steps)
+@@ -213,20 +233,25 @@ if __name__ == "__main__":
+     torch.manual_seed(args.seed)
+     torch.backends.cudnn.deterministic = args.torch_deterministic
+     device = torch.device("cuda" if torch.cuda.is_available() and args.cuda else "cpu")
++    
+     # env setup
+     envs = gym.vector.SyncVectorEnv(
+         [make_env(args.env_id, i, args.capture_video, run_name, args.gamma) for i in range(args.num_envs)]
+     )
+     assert isinstance(envs.single_action_space, gym.spaces.Box), "only continuous action space is supported"
++    
+     # base learners initiation
+     m = args.num_base_learners
+     base_learners = []
+     for i in range(m):
+         agent = BaseLearner(base_index=i, envs=envs, device=device, args=args).to(device)
+         base_learners.append(agent)
++
+     # meta learner initiation
+     if args.modsel_alg == "BHD3" :
+         modsel = BalancingHyperparamDoublingDataDriven(m, dmin = 1)
++    elif args.modsel_alg == "ED2RB" :
++        modsel = BalancingHyperparamDoublingDataDriven(m, dmin = 1, empirical = True)
+     elif args.modsel_alg == "Corral":
+         modsel = CorralHyperparam(m)
+     elif args.modsel_alg == "Exp3":
+@@ -245,6 +270,7 @@ if __name__ == "__main__":
+     next_obs = torch.Tensor(next_obs).to(device)
+     next_done = torch.zeros(args.num_envs).to(device)
+     selected_base_learners = []
++
+     for iteration in range(1, args.num_iterations + 1):
+         # Setting up the base learner for the episode
+         base_index = modsel.sample_base_index()
+@@ -257,6 +283,7 @@ if __name__ == "__main__":
+         rewards = agent.rewards
+         dones = agent.dones
+         values = agent.values
++        
+         # Annealing the rate if instructed to do so.
+         if args.anneal_lr:
+             frac = 1.0 - (iteration - 1.0) / args.num_iterations
+@@ -273,6 +300,7 @@ if __name__ == "__main__":
+                 values[step] = value.flatten()
+             actions[step] = action
+             logprobs[step] = logprob
++            
+             # TRY NOT TO MODIFY: execute the game and log data.
+             next_obs, reward, terminations, truncations, infos = envs.step(action.cpu().numpy())
+             next_done = np.logical_or(terminations, truncations)
+diff --git a/model_selection_algorithms/algorithmsmodsel.py b/model_selection_algorithms/algorithmsmodsel.py
+index c21ffa0..8fd9187 100644
+--- a/model_selection_algorithms/algorithmsmodsel.py
++++ b/model_selection_algorithms/algorithmsmodsel.py
+@@ -5,6 +5,10 @@ import pandas as pd
+ import random
+ import itertools
+ import sys
++import os
++
++sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
++
+ 
+ import IPython
+ 
+@@ -15,7 +19,7 @@ from typing import Any
+ from math import log, exp
+ 
+ 
+-from bandit_algs import UCBalgorithm, EXP3
++from model_selection_algorithms.bandit_algs import UCBalgorithm, EXP3
+ 
+ 
+ def binary_search(func,xmin,xmax,tol=1e-5):

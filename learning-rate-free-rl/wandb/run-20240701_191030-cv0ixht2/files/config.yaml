@@ -1,0 +1,131 @@
+wandb_version: 1
+
+exp_name:
+  desc: null
+  value: learning_rate_free_PPO
+modsel_alg:
+  desc: null
+  value: ED2RB
+hparam_to_tune:
+  desc: null
+  value: learning_rate
+num_base_learners:
+  desc: null
+  value: 10
+seed:
+  desc: null
+  value: 1
+torch_deterministic:
+  desc: null
+  value: true
+cuda:
+  desc: null
+  value: true
+track:
+  desc: null
+  value: true
+wandb_project_name:
+  desc: null
+  value: PPO_ED2RB_lr_humanoind
+wandb_entity:
+  desc: null
+  value: null
+capture_video:
+  desc: null
+  value: false
+save_model:
+  desc: null
+  value: true
+upload_model:
+  desc: null
+  value: false
+hf_entity:
+  desc: null
+  value: ''
+env_id:
+  desc: null
+  value: Humanoid-v4
+total_timesteps:
+  desc: null
+  value: 10000000
+learning_rate:
+  desc: null
+  value: 0.0003
+num_envs:
+  desc: null
+  value: 1
+num_steps:
+  desc: null
+  value: 2048
+anneal_lr:
+  desc: null
+  value: false
+gamma:
+  desc: null
+  value: 0.99
+gae_lambda:
+  desc: null
+  value: 0.95
+num_minibatches:
+  desc: null
+  value: 32
+update_epochs:
+  desc: null
+  value: 10
+norm_adv:
+  desc: null
+  value: true
+clip_coef:
+  desc: null
+  value: 0.2
+clip_vloss:
+  desc: null
+  value: true
+ent_coef:
+  desc: null
+  value: 0.0
+vf_coef:
+  desc: null
+  value: 0.5
+max_grad_norm:
+  desc: null
+  value: 0.5
+target_kl:
+  desc: null
+  value: null
+batch_size:
+  desc: null
+  value: 2048
+minibatch_size:
+  desc: null
+  value: 64
+num_iterations:
+  desc: null
+  value: 4882
+_wandb:
+  desc: null
+  value:
+    code_path: code/learning-rate-free-rl/learning_rate_free_PPO.py
+    python_version: 3.10.14
+    cli_version: 0.17.3
+    framework: torch
+    is_jupyter_run: false
+    is_kaggle_kernel: false
+    start_time: 1719875430
+    t:
+      1:
+      - 1
+      - 55
+      2:
+      - 1
+      - 55
+      3:
+      - 13
+      - 16
+      - 23
+      - 35
+      4: 3.10.14
+      5: 0.17.3
+      8:
+      - 5
+      13: linux-x86_64

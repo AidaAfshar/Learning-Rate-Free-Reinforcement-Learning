@@ -5,6 +5,10 @@ import pandas as pd
 import random
 import itertools
 import sys
+import os
+
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 
 import IPython
 
@@ -15,7 +19,7 @@ from typing import Any
 from math import log, exp
 
 
-from bandit_algs import UCBalgorithm, EXP3
+from model_selection_algorithms.bandit_algs import UCBalgorithm, EXP3
 
 
 def binary_search(func,xmin,xmax,tol=1e-5):
