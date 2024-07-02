@@ -2,8 +2,10 @@
 This repository includes the Learning rate-free version of PPO and DQN, using model selection algorithms. 
 
 For choosing the model selection strategy, set the 'modsel_alg' parameter to one of the following during the initialization:
-- "BHD3"
-  - for Doubling Data-Driven Regret Balancing algorithm
+- "D3RB"
+  - for Doubling Data-Driven Regret Balancing algorithm 
+- "ED2RB"
+  - for Estimating Data-Driven Regret Balancing   
 - "Classic"
   - for the regret bound balancing algorithm
 - "Corral"
